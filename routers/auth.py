@@ -132,9 +132,13 @@ def send_code():
         # 邮件发送失败且 DEBUG=True：前端直接显示验证码（方便本地测试）
         return jsonify(success(data={"code": code}, message="验证码已发送（调试模式）"))
     else:
-        # 生产环境：记录详细错误到服务器日志，前端只返回通用提示
+        # 生产环境：记录详细错误到服务器日志，同时返回诊断信息到前端 Toast
+        # 方便部署后立刻排查是网络问题还是配置问题
         print(f"[SMTP] 生产环境发送失败，详情: {email_err}")
-        return jsonify(error(50001, "邮件发送失败，请稍后重试"))
+        err_summary = email_err.split(";")[0] if ";" in email_err else email_err
+        # 隐藏敏感凭证信息
+        err_summary = re.sub(r"LOGIN\s+refused.*", "LOGIN refused", err_summary, flags=re.I)
+        return jsonify(error(50001, f"邮件发送失败: {err_summary}"))
 
 
 @bp.post("/register")
