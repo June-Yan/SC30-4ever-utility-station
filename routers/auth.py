@@ -1,10 +1,13 @@
 """认证 API 路由（验证码发送/注册/密码登录/验证码登录/注销/设密码/重置密码）"""
 
 import random
+import re
 import smtplib
 import sqlalchemy.exc
 from datetime import datetime, timedelta, timezone
+from email.header import Header
 from email.mime.text import MIMEText
+from email.utils import formataddr
 from flask import Blueprint, request, jsonify
 from extensions import limiter
 from models import User, VerificationCode
@@ -15,23 +18,50 @@ from auth import hash_password, verify_password, create_access_token, get_curren
 bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 
-def _send_email(to_email: str, subject: str, body: str) -> bool:
-    """通过 SMTP 发送邮件。SMTP 未配置时返回 False，由调用方回退到 DEBUG 模式。"""
+def _send_email(to_email: str, subject: str, body: str) -> tuple[bool, str]:
+    """通过 SMTP 发送邮件。
+    返回 (success: bool, error_msg: str)。
+    SMTP 未配置时返回 (False, '未配置')。
+    支持 STARTTLS (587) 和 SSL (465) 两种连接方式自动回退。"""
     if not Config.SMTP_USER or not Config.SMTP_PASSWORD:
-        return False
-    try:
-        msg = MIMEText(body, "plain", "utf-8")
-        msg["Subject"] = subject
-        msg["From"] = Config.SMTP_FROM
-        msg["To"] = to_email
+        return False, "SMTP 未配置（未设置 SMTP_USER / SMTP_PASSWORD）"
 
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = Header(subject, "utf-8").encode()
+
+    # RFC2047 encode the From header so Chinese display names work with strict servers (QQ, etc.)
+    m = re.match(r'^(.*?)\s*<(.+)>\s*$', Config.SMTP_FROM)
+    if m:
+        name, addr = m.group(1).strip(), m.group(2).strip()
+        msg["From"] = formataddr((Header(name, "utf-8").encode(), addr))
+    else:
+        msg["From"] = Config.SMTP_FROM
+
+    msg["To"] = to_email
+
+    errors = []
+
+    # 方法 A: STARTTLS (端口 587)
+    try:
         with smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT, timeout=10) as server:
             server.starttls()
             server.login(Config.SMTP_USER, Config.SMTP_PASSWORD)
             server.sendmail(Config.SMTP_FROM, [to_email], msg.as_string())
-        return True
-    except Exception:
-        return False
+        return True, ""
+    except Exception as e:
+        errors.append(f"STARTTLS({Config.SMTP_PORT}): {type(e).__name__}: {e}")
+
+    # 方法 B: SSL (端口 465，QQ 邮箱备选)
+    ssl_port = 465
+    try:
+        with smtplib.SMTP_SSL(Config.SMTP_HOST, ssl_port, timeout=10) as server:
+            server.login(Config.SMTP_USER, Config.SMTP_PASSWORD)
+            server.sendmail(Config.SMTP_FROM, [to_email], msg.as_string())
+        return True, ""
+    except Exception as e:
+        errors.append(f"SSL({ssl_port}): {type(e).__name__}: {e}")
+
+    return False, "; ".join(errors)
 
 
 @bp.post("/send-code")
@@ -60,7 +90,7 @@ def send_code():
     db.session.commit()
 
     # 尝试发送真实邮件
-    email_sent = _send_email(
+    email_sent, email_err = _send_email(
         email,
         "实用工具聚合站 — 验证码",
         f"您的验证码是：{code}\n\n5分钟内有效，请勿告诉他人。"
@@ -72,6 +102,8 @@ def send_code():
         # 邮件发送失败且 DEBUG=True：前端直接显示验证码（方便本地测试）
         return jsonify(success(data={"code": code}, message="验证码已发送（调试模式）"))
     else:
+        # 生产环境：记录详细错误到服务器日志，前端只返回通用提示
+        print(f"[SMTP] 生产环境发送失败，详情: {email_err}")
         return jsonify(error(50001, "邮件发送失败，请稍后重试"))
 
 
