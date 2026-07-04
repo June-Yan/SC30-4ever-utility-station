@@ -2151,6 +2151,34 @@ textarea { resize: vertical; min-height: 80px; }
   border-radius: 50px;
 }
 
+/* ===== HOME STATS FOOTER (flat blog-style) ===== */
+.home-stats-footer {
+  text-align: center;
+  padding: 32px 0 8px;
+  font-size: .78rem;
+  color: var(--fg2);
+  font-weight: 600;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  opacity: .85;
+  border-top: 1px dashed var(--border);
+  margin-top: 16px;
+}
+
+.home-stats-footer .home-stats-sep {
+  color: var(--border);
+  font-weight: 400;
+}
+
+.home-stats-footer .home-stats-dot {
+  color: var(--accent);
+  font-size: .5rem;
+  opacity: .6;
+}
+
 /* ===== HOME SEARCH ===== */
 .home-search-box {
   position: relative;

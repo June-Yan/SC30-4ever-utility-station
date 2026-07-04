@@ -1064,7 +1064,7 @@ function openWidgetModal(widgetId) {
 
   // If custom widget not found locally but we have share params, create temp entry
   if (!preset && !custom && window._shareParams && window._shareParams.custom === widgetId) {
-    custom = { id: widgetId, name: '分享的小组件', icon: '🔗', type: window._shareParams.customType, url: window._shareParams.customUrl, content: window._shareParams.customContent };
+    custom = { id: widgetId, name: '分享的工具', icon: '🔗', type: window._shareParams.customType, url: window._shareParams.customUrl, content: window._shareParams.customContent };
   }
 
   if (!preset && !custom) return;
@@ -1211,12 +1211,12 @@ function renderHome() {
       <p>一站式聚合多款高频轻量工具，打开即用${auth.isGuest() ? '（游客模式，数据仅存本地）' : ''}</p>
     </div>
     <div class="home-search-box">
-      <input type="text" id="homeSearchInput" placeholder="🔍 搜索工具、小组件、社区作品..." autocomplete="off" />
+      <input type="text" id="homeSearchInput" placeholder="🔍 搜索工具、工具、社区作品..." autocomplete="off" />
       <div id="homeSearchResults" class="home-search-results hidden"></div>
     </div>
-    <div id="homeStatsArea"></div>
     <div id="topToolsArea"></div>
     <div id="recentWidgetsArea"></div>
+    <div id="homeStatsArea"></div>
   `;
 }
 
@@ -1306,16 +1306,16 @@ function initHome() {
     if (d) {
       const statsEl = $('#homeStatsArea');
       statsEl.innerHTML = `
-        <div class="home-stats-section">
-          <div class="home-stats-card">
-            <div class="home-stats-number">${d.total_tools}</div>
-            <div class="home-stats-label">本站工具总数</div>
-            <div class="home-stats-detail">
-              <span>${d.core_pages} 个页面</span>
-              <span>${d.preset_widgets} 个预设工具</span>
-              <span>${d.community_widgets} 个社区组件</span>
-            </div>
-          </div>
+        <div class="home-stats-footer">
+          <span class="home-stats-dot">●</span>
+          <span>共 ${d.total_tools} 款工具</span>
+          <span class="home-stats-sep">|</span>
+          <span>${d.core_pages} 个页面</span>
+          <span class="home-stats-sep">|</span>
+          <span>${d.preset_widgets} 个预设工具</span>
+          <span class="home-stats-sep">|</span>
+          <span>${d.community_widgets} 个社区工具</span>
+          <span class="home-stats-dot">●</span>
         </div>`;
 
       // Render recent community widgets
@@ -1335,7 +1335,7 @@ function initHome() {
         }).join('');
         recentEl.innerHTML = `
           <div class="home-tools-section">
-            <h2 class="home-tools-title">🆕 最近新增社区组件</h2>
+            <h2 class="home-tools-title">🆕 最近新增社区工具</h2>
             <div class="home-tools-grid">${cards}</div>
           </div>`;
 
@@ -1962,17 +1962,17 @@ function renderWidgets() {
       ${isGuest ? `
         <div class="guest-prompt" style="padding:48px 24px">
           <div class="guest-prompt-icon">🔒</div>
-          <h2>需要登录才能使用自定义小组件</h2>
-          <p>登录后即可创建、管理和同步你的自定义小组件</p>
+          <h2>需要登录才能使用自定义工具</h2>
+          <p>登录后即可创建、管理和同步你的自定义工具</p>
           <button class="btn btn-primary" id="widgetsGuestLoginBtn">🔑 登录</button>
         </div>
       ` : `
       <div class="card" style="margin-bottom:16px">
-        <button class="btn btn-primary btn-sm" id="addWidgetBtn">+ 添加自定义小组件</button>
+        <button class="btn btn-primary btn-sm" id="addWidgetBtn">+ 添加自定义工具</button>
         <div id="addWidgetForm" class="add-widget-form" style="display:none;margin-top:16px">
           <div class="form-row">
             <label>名称 *</label>
-            <input type="text" id="cwName" placeholder="小组件名称" />
+            <input type="text" id="cwName" placeholder="工具名称" />
           </div>
           <div class="form-row">
             <label>图标</label>
@@ -2023,8 +2023,8 @@ function renderWidgets() {
             </div>`;
           }).join('')}
         </div>
-        <p style="text-align:center;color:var(--fg2);font-size:.82rem;margin-top:12px">💡 点击卡片使用小组件，点击 📤 上传 分享到创意工坊</p>
-      ` : '<p style="text-align:center;color:var(--fg2);padding:24px">还没有自定义小组件，点击上方按钮添加~</p>'}
+        <p style="text-align:center;color:var(--fg2);font-size:.82rem;margin-top:12px">💡 点击卡片使用工具，点击 📤 上传 分享到创意工坊</p>
+      ` : '<p style="text-align:center;color:var(--fg2);padding:24px">还没有自定义工具，点击上方按钮添加~</p>'}
       `}
     </div>
   `;
@@ -2047,7 +2047,7 @@ async function initWidgets() {
     tab.addEventListener('click', () => {
       // Guest cannot access mywidgets
       if (auth.isGuest() && tab.dataset.tab === 'mywidgets') {
-        showConfirm('💾 使用自定义小组件需要登录，登录后数据可云端同步~\n\n点击"确定"前往登录').then(ok => {
+        showConfirm('💾 使用自定义工具需要登录，登录后数据可云端同步~\n\n点击"确定"前往登录').then(ok => {
           if (ok) { auth.clearAuth(); showLoginPage(); }
         });
         return;
@@ -2172,7 +2172,7 @@ async function initWidgets() {
     const url = $('#cwUrl').value.trim();
     const content = type === 'code' ? $('#cwCode').value : $('#cwContent').value.trim();
 
-    if (!name) { showToast('请输入小组件名称', 'error'); return; }
+    if (!name) { showToast('请输入工具名称', 'error'); return; }
     if (type === 'url' && !url) { showToast('请输入URL', 'error'); return; }
     if (type === 'code' && !content) { showToast('请输入代码', 'error'); return; }
 
@@ -2181,7 +2181,7 @@ async function initWidgets() {
     config.customs.push({ id, name, icon, type, url, content });
     config.order.push(id);
     await saveWidgetConfig(config);
-    showToast('小组件已添加', 'success');
+    showToast('工具已添加', 'success');
     renderPage('widgets');
   });
 
@@ -2193,7 +2193,7 @@ async function initWidgets() {
 }
 
 async function deleteCustomWidget(id) {
-  const ok = await showConfirm('确定删除这个自定义小组件？');
+  const ok = await showConfirm('确定删除这个自定义工具？');
   if (!ok) return;
   const config = getWidgetConfig();
   config.customs = config.customs.filter(c => c.id !== id);
@@ -2415,7 +2415,7 @@ function renderUser() {
     </div>
     <div class="card" style="margin-bottom:20px">
       <div class="section-title">🧑‍🎨 创意工坊</div>
-      <p style="color:var(--fg2);margin-bottom:12px">浏览社区小组件或上传你的创意作品 ♪</p>
+      <p style="color:var(--fg2);margin-bottom:12px">浏览社区工具或上传你的创意作品 ♪</p>
       <button class="btn btn-primary" id="userWorkshop">🧑‍🎨 进入创意工坊</button>
     </div>
     <div class="user-bottom-links">
@@ -2996,7 +2996,7 @@ function renderWorkshop() {
       <div class="guest-prompt">
         <div class="guest-prompt-icon">🔒</div>
         <h2>需要登录才能使用创意工坊</h2>
-        <p>登录后即可浏览和上传社区小组件</p>
+        <p>登录后即可浏览和上传社区工具</p>
         <button class="btn btn-primary" id="guestLoginBtn">🔑 登录</button>
       </div>`;
   }
@@ -3012,7 +3012,7 @@ function renderWorkshop() {
     <!-- 社区作品 -->
     <div class="tool-panel active" id="wsPanelCommunity">
       <div style="margin-bottom:16px">
-        <input type="text" id="wsSearch" placeholder="🔍 搜索小组件名称..." style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:var(--radius);font-size:.9rem;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'" />
+        <input type="text" id="wsSearch" placeholder="🔍 搜索工具名称..." style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:var(--radius);font-size:.9rem;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'" />
       </div>
       <div id="wsCommunityList" style="color:var(--fg2)">加载中...</div>
     </div>
@@ -3020,11 +3020,11 @@ function renderWorkshop() {
     <!-- 上传作品 -->
     <div class="tool-panel" id="wsPanelUpload">
       <div class="card" style="margin-bottom:16px;padding:28px 32px">
-        <h2 style="font-size:1.1rem;font-weight:700;margin:0 0 20px;text-align:center">📤 上传你的小组件作品</h2>
+        <h2 style="font-size:1.1rem;font-weight:700;margin:0 0 20px;text-align:center">📤 上传你的工具作品</h2>
         <div style="display:flex;gap:12px;margin-bottom:20px">
           <div style="flex:1">
             <label style="display:block;font-size:.8rem;color:var(--fg2);margin-bottom:6px;font-weight:600">名称 *</label>
-            <input type="text" id="wsName" placeholder="给小组件起个名字" maxlength="200" style="width:100%" />
+            <input type="text" id="wsName" placeholder="给工具起个名字" maxlength="200" style="width:100%" />
           </div>
           <div style="width:72px;flex-shrink:0">
             <label style="display:block;font-size:.8rem;color:var(--fg2);margin-bottom:6px;font-weight:600">图标</label>
@@ -3052,7 +3052,7 @@ function renderWorkshop() {
           <textarea id="wsCode" rows="6" style="width:100%;font-family:monospace;font-size:.85rem" placeholder='<button onclick="showToast("Hello","success")">Click Me</button>'></textarea>
         </div>
         <button class="btn btn-primary" id="wsSubmit" style="width:100%;padding:12px;font-size:1rem">📤 提交作品</button>
-        <p style="color:var(--fg2);font-size:.78rem;margin-top:14px;text-align:center;line-height:1.5">💡 也可以在 🧩 工具箱 → 我的自定义 中一键上传已有小组件</p>
+        <p style="color:var(--fg2);font-size:.78rem;margin-top:14px;text-align:center;line-height:1.5">💡 也可以在 🧩 工具箱 → 我的自定义 中一键上传已有工具</p>
       </div>
     </div>
 
@@ -3105,7 +3105,7 @@ async function initWorkshop() {
     const url = $('#wsUrl').value.trim();
     const content = type === 'content' ? $('#wsContent').value : $('#wsCode').value;
 
-    if (!name) { showToast('请输入小组件名称', 'error'); return; }
+    if (!name) { showToast('请输入工具名称', 'error'); return; }
     if (type === 'url' && !url) { showToast('快捷链接类型需要填写URL', 'error'); return; }
     if (type === 'code' && !content.trim()) { showToast('自定义代码类型需要填写代码', 'error'); return; }
 
@@ -3140,7 +3140,7 @@ async function initWorkshop() {
 
           if (!filtered.length) {
             el.innerHTML = keyword
-              ? '<p style="text-align:center;color:var(--fg2);padding:24px">没有找到匹配的小组件~</p>'
+              ? '<p style="text-align:center;color:var(--fg2);padding:24px">没有找到匹配的工具~</p>'
               : '<p style="text-align:center;color:var(--fg2);padding:24px">暂无社区作品，快来上传第一个吧~</p>';
             return;
           }
