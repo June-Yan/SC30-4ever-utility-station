@@ -976,7 +976,23 @@ function parseShareParams() {
 async function loadWidgetStars(widgetId, containerEl) {
   const res = await ratingApi.get(widgetId);
   const d = res.code === 0 ? res.data : { avg: 0, count: 0, user_rating: null };
-  renderStarDisplay(containerEl, d.avg, d.count, d.user_rating, widgetId);
+
+  // Average rating (read-only display)
+  let html = '<div style="display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:4px">';
+  html += '<span class="star-display">';
+  for (let i = 1; i <= 5; i++) {
+    const filled = i <= Math.round(d.avg);
+    html += `<span class="star-icon ${filled ? 'filled' : ''}">★</span>`;
+  }
+  html += `</span><span class="star-count">${d.avg > 0 ? d.avg.toFixed(1) : '暂无'} (${d.count})</span>`;
+  html += '</div>';
+
+  // Interactive user rating stars
+  html += '<div class="widget-user-stars" style="display:flex;justify-content:center"></div>';
+  containerEl.innerHTML = html;
+
+  const interactiveEl = containerEl.querySelector('.widget-user-stars');
+  if (interactiveEl) renderStarInteractive(interactiveEl, widgetId, d.user_rating);
 }
 
 function renderStarDisplay(el, avg, count, userRating, widgetId) {

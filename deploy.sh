@@ -31,7 +31,7 @@ with app.app_context():
 # ---------- 3. 启动服务 ----------
 echo "[3/3] 启动 Flask 服务 (端口 3000)..."
 export PORT=3000
-export DEBUG=True
+# DEBUG mode is controlled by .env file; do not hardcode here
 nohup python app.py > /tmp/utility.log 2>&1 &
 PID=$!
 echo "  服务 PID: $PID"
