@@ -2372,6 +2372,15 @@ textarea { resize: vertical; min-height: 80px; }
   margin-top: 4px;
 }
 
+.widget-card-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
 /* skeleton for loading */
 .skeleton {
   background: linear-gradient(90deg, var(--bg2) 25%, #fff 50%, var(--bg2) 75%);

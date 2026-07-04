@@ -27,3 +27,10 @@ class Config:
         "sqlite:///" + os.path.join(os.path.dirname(os.path.abspath(__file__)), "instance", "utility.db"),
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # SMTP 邮件发送配置
+    SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.qq.com")
+    SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+    SMTP_USER = os.environ.get("SMTP_USER", "")
+    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+    SMTP_FROM = os.environ.get("SMTP_FROM", "实用工具聚合站 <noreply@utility.com>")

@@ -1083,7 +1083,18 @@ function openWidgetModal(widgetId) {
     })();
   } else if (custom) {
     title.textContent = custom.icon + ' ' + custom.name;
-    if (custom.type === 'code') {
+    if (custom.type === 'url') {
+      // URL widget: show link preview + open button + rating
+      content.innerHTML = `
+        <div style="text-align:center;padding:16px 0">
+          <div style="font-size:1.2rem;margin-bottom:12px">🔗</div>
+          <div style="color:var(--fg2);font-size:.85rem;margin-bottom:20px;word-break:break-all;padding:0 12px">${escapeHtml(custom.url || '')}</div>
+          <button class="btn btn-primary" id="modalOpenUrlBtn">🔗 打开链接</button>
+        </div>`;
+      $('#modalOpenUrlBtn').addEventListener('click', () => {
+        if (custom.url) window.open(custom.url, '_blank');
+      });
+    } else if (custom.type === 'code') {
       const iframe = document.createElement('iframe');
       iframe.sandbox = 'allow-scripts allow-same-origin';
       iframe.style.cssText = 'width:100%;min-height:200px;border:none;border-radius:var(--radius-sm);';
@@ -1981,13 +1992,15 @@ function renderWidgets() {
         <div class="widget-quick-grid">
           ${config.customs.map(c => {
             const isCommunity = c.id.startsWith('community_');
+            const isUrl = c.type === 'url';
             return `
-            <div class="widget-quick-card" data-custom-id="${c.id}" style="cursor:pointer">
+            <div class="widget-quick-card" data-custom-id="${c.id}" data-is-url="${isUrl ? '1' : '0'}" style="cursor:${isUrl ? 'default' : 'pointer'}">
               <span class="tool-card-icon">${escapeHtml(c.icon)}</span>
               <h3>${escapeHtml(c.name)}</h3>
-              <p>${c.type === 'url' ? '快捷链接 →' : c.type === 'code' ? '自定义代码' : (c.content || '').slice(0, 20)}</p>
+              <p>${isUrl ? '快捷链接' : c.type === 'code' ? '自定义代码' : (c.content || '').slice(0, 20)}</p>
               <div class="widget-stars" data-widget-id="${c.id}" style="margin-top:6px"></div>
-              <div style="display:flex;gap:6px;align-items:center;margin-top:8px;justify-content:center;flex-wrap:wrap">
+              <div class="widget-card-actions">
+                ${isUrl ? `<button class="btn btn-sm btn-secondary custom-open-url-btn" data-id="${c.id}" data-url="${escapeHtml(c.url || '')}">🔗 打开链接</button>` : ''}
                 ${!isCommunity ? '<button class="btn btn-sm btn-primary custom-upload-btn" data-id="' + c.id + '">📤 上传</button>' : ''}
                 <button class="btn btn-sm btn-danger custom-delete-btn" data-id="${c.id}">🗑️</button>
               </div>
@@ -2043,20 +2056,28 @@ async function initWidgets() {
     });
   });
 
-  // Custom widget: click card to use
+  // Custom widget: click card to use (non-URL types only; URL types have explicit "open link" button)
   $$('[data-custom-id]').forEach(card => {
     card.addEventListener('click', (e) => {
       if (e.target.closest('button')) return; // ignore button clicks
+      if (card.dataset.isUrl === '1') return; // URL cards don't auto-open
       const id = card.dataset.customId;
       const config = getWidgetConfig();
       const custom = config.customs.find(c => c.id === id);
       if (!custom) return;
-      if (custom.type === 'url') {
-        if (!auth.isGuest()) usageApi.record(id);
-        window.open(custom.url, '_blank');
-      } else {
-        openWidgetModal(id);
-      }
+      openWidgetModal(id);
+    });
+  });
+
+  // Custom widget: open URL button
+  $$('.custom-open-url-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const url = btn.dataset.url;
+      if (!url) return;
+      if (!auth.isGuest()) usageApi.record(id);
+      window.open(url, '_blank');
     });
   });
 
@@ -3109,13 +3130,17 @@ async function initWorkshop() {
           }
 
           el.innerHTML = `<div class="workshop-grid">${filtered.map(w => {
-            const added = myIds.has(`community_${w.id}`);
-            return `<div class="workshop-card">
+            const communityId = `community_${w.id}`;
+            const added = myIds.has(communityId);
+            const isUrl = w.type === 'url';
+            return `<div class="workshop-card" data-ws-id="${w.id}" data-community-id="${communityId}" data-is-url="${isUrl ? '1' : '0'}" style="cursor:default">
               <span class="workshop-card-icon">${escapeHtml(w.icon)}</span>
               <div class="workshop-card-name">${escapeHtml(w.name)}</div>
-              <div class="workshop-card-type">${w.type === 'url' ? '快捷链接' : w.type === 'code' ? '自定义代码' : '自定义内容'}</div>
+              <div class="workshop-card-type">${isUrl ? '快捷链接' : w.type === 'code' ? '自定义代码' : '自定义内容'}</div>
               <div class="workshop-card-author">by ${escapeHtml(w.author_email)}</div>
-              <div style="display:flex;gap:6px;justify-content:center">
+              <div class="widget-stars" data-widget-id="${communityId}" style="margin-top:6px"></div>
+              <div class="widget-card-actions">
+                ${isUrl && added ? `<button class="btn btn-sm btn-secondary ws-open-url-btn" data-url="${escapeHtml(w.url || '')}">🔗 打开链接</button>` : ''}
                 <button class="btn btn-sm ${added ? 'btn-ghost' : 'btn-primary'} ws-add-btn" data-id="${w.id}" ${added ? 'disabled' : ''}>
                   ${added ? '✓ 已添加' : '+ 添加到工具箱'}
                 </button>
@@ -3148,6 +3173,15 @@ async function initWorkshop() {
             });
           });
 
+          // Open URL button for community URL widgets
+          el.querySelectorAll('.ws-open-url-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const url = btn.dataset.url;
+              if (url) window.open(url, '_blank');
+            });
+          });
+
           // Admin: delete community widget
           el.querySelectorAll('.ws-del-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
@@ -3165,6 +3199,12 @@ async function initWorkshop() {
                 }
               } catch(e) { btn.disabled = false; showToast('网络错误', 'error'); }
             });
+          });
+
+          // Load star ratings for community widgets
+          $$('.workshop-card .widget-stars').forEach(starsEl => {
+            const wid = starsEl.dataset.widgetId;
+            if (wid) loadWidgetStars(wid, starsEl);
           });
         };
 

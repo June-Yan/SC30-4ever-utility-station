@@ -1,8 +1,10 @@
 """认证 API 路由（验证码发送/注册/密码登录/验证码登录/注销/设密码/重置密码）"""
 
 import random
+import smtplib
 import sqlalchemy.exc
 from datetime import datetime, timedelta, timezone
+from email.mime.text import MIMEText
 from flask import Blueprint, request, jsonify
 from extensions import limiter
 from models import User, VerificationCode
@@ -11,6 +13,25 @@ from config import Config
 from auth import hash_password, verify_password, create_access_token, get_current_user, success, error
 
 bp = Blueprint("auth", __name__, url_prefix="/api/auth")
+
+
+def _send_email(to_email: str, subject: str, body: str) -> bool:
+    """通过 SMTP 发送邮件。SMTP 未配置时返回 False，由调用方回退到 DEBUG 模式。"""
+    if not Config.SMTP_USER or not Config.SMTP_PASSWORD:
+        return False
+    try:
+        msg = MIMEText(body, "plain", "utf-8")
+        msg["Subject"] = subject
+        msg["From"] = Config.SMTP_FROM
+        msg["To"] = to_email
+
+        with smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(Config.SMTP_USER, Config.SMTP_PASSWORD)
+            server.sendmail(Config.SMTP_FROM, [to_email], msg.as_string())
+        return True
+    except Exception:
+        return False
 
 
 @bp.post("/send-code")
@@ -38,10 +59,20 @@ def send_code():
     db.session.add(vc)
     db.session.commit()
 
-    if Config.DEBUG:
-        return jsonify(success(data={"code": code}, message="验证码已发送"))
+    # 尝试发送真实邮件
+    email_sent = _send_email(
+        email,
+        "实用工具聚合站 — 验证码",
+        f"您的验证码是：{code}\n\n5分钟内有效，请勿告诉他人。"
+    )
+
+    if email_sent:
+        return jsonify(success(message="验证码已发送至您的邮箱"))
+    elif Config.DEBUG:
+        # 邮件发送失败且 DEBUG=True：前端直接显示验证码（方便本地测试）
+        return jsonify(success(data={"code": code}, message="验证码已发送（调试模式）"))
     else:
-        return jsonify(success(data={}, message="验证码已发送"))
+        return jsonify(error(50001, "邮件发送失败，请稍后重试"))
 
 
 @bp.post("/register")
