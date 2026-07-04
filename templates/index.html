@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实用工具聚合站</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css?v=7">
+</head>
+<body>
+<script>window._lanIp = "{{ lan_ip }}";</script>
+<!-- 樱花飘落容器 -->
+<div id="sakuraContainer"></div>
+
+<nav id="navbar">
+  <div class="nav-inner">
+    <a class="nav-logo" href="#" data-page="home">
+      <span class="logo-icon">🌸</span>
+      <span class="logo-text">工具站</span>
+      <span class="logo-star">✨</span>
+    </a>
+    <button class="hamburger" id="hamburger" aria-label="菜单">☰</button>
+    <div class="nav-links" id="navLinks">
+      <a href="#" data-page="home" class="active">🏠 首页</a>
+      <a href="#" data-page="weather">🌤 天气</a>
+      <a href="#" data-page="memo">📝 备忘录</a>
+      <a href="#" data-page="countdown">⏳ 倒计时</a>
+      <a href="#" data-page="widgets">🧩 工具箱</a>
+      <a href="#" data-page="ranking">🏆 排行</a>
+      <a href="#" data-page="workshop">🧑‍🎨 创意工坊</a>
+      <a href="#" data-page="user">👤 我的</a>
+      <a href="#" data-page="admin" id="navAdminLink" style="display:none">⚙️ 管理</a>
+      <div class="nav-mobile-user" id="navMobileUser" style="display:none">
+        <span id="navMobileEmail"></span>
+        <button class="btn btn-ghost nav-logout-btn" id="navMobileLogout">🚪 退出登录</button>
+      </div>
+    </div>
+    <div class="nav-user" id="navUser" style="display:none">
+      <span class="nav-user-email" id="navUserEmail"></span>
+      <button class="btn btn-ghost nav-logout-btn" id="navLogout">退出</button>
+    </div>
+  </div>
+</nav>
+
+<main id="app"></main>
+
+<div id="toast" class="toast"></div>
+<div id="confirmOverlay" class="confirm-overlay hidden">
+	  <div class="confirm-box">
+	    <div class="confirm-deco">🎀</div>
+	    <p id="confirmMsg"></p>
+	    <div class="confirm-btns">
+	      <button id="confirmYes" class="btn btn-danger">确定</button>
+	      <button id="confirmNo" class="btn btn-ghost">取消</button>
+	    </div>
+	  </div>
+	</div>
+
+	<div id="widgetModal" class="widget-modal-overlay hidden">
+		  <div class="widget-modal-body">
+		    <div class="widget-modal-header">
+		      <h2 id="widgetModalTitle"></h2>
+		      <button class="widget-modal-close" id="widgetModalClose">✕</button>
+		    </div>
+		    <div id="widgetModalContent"></div>
+		  </div>
+		</div>
+
+		<div id="shareCardModal" class="widget-modal-overlay hidden">
+		  <div class="widget-modal-body" style="max-width:440px">
+		    <div class="widget-modal-header">
+		      <h2>🌸 分享卡片</h2>
+		      <button class="widget-modal-close" id="shareCardClose">✕</button>
+		    </div>
+		    <div style="text-align:center">
+		      <canvas id="shareCardCanvas" width="400" height="560" style="max-width:100%;border-radius:16px;box-shadow:0 4px 24px rgba(255,126,179,.2)"></canvas>
+		      <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+		        <button class="btn btn-primary" id="shareCardDownload">📥 保存图片</button>
+		        <button class="btn btn-secondary" id="shareCardCopyLink">📋 复制链接</button>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="/static/app.js?v=9"></script>
+</body>
+</html>

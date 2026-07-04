@@ -1,0 +1,8 @@
+autoOpen: false
+apps:
+  - port: 3000
+    run: bash deploy.sh
+    root: /workspace/utility-station
+    name: utility-station
+    description: 实用工具聚合站
+    autoOpen: false
