@@ -119,26 +119,8 @@ def send_code():
     db.session.add(vc)
     db.session.commit()
 
-    # 尝试发送真实邮件
-    email_sent, email_err = _send_email(
-        email,
-        "实用工具聚合站 — 验证码",
-        f"您的验证码是：{code}\n\n5分钟内有效，请勿告诉他人。"
-    )
-
-    if email_sent:
-        return jsonify(success(message="验证码已发送至您的邮箱"))
-    elif Config.DEBUG:
-        # 邮件发送失败且 DEBUG=True：前端直接显示验证码（方便本地测试）
-        return jsonify(success(data={"code": code}, message="验证码已发送（调试模式）"))
-    else:
-        # 生产环境：记录详细错误到服务器日志，同时返回诊断信息到前端 Toast
-        # 方便部署后立刻排查是网络问题还是配置问题
-        print(f"[SMTP] 生产环境发送失败，详情: {email_err}")
-        err_summary = email_err.split(";")[0] if ";" in email_err else email_err
-        # 隐藏敏感凭证信息
-        err_summary = re.sub(r"LOGIN\s+refused.*", "LOGIN refused", err_summary, flags=re.I)
-        return jsonify(error(50001, f"邮件发送失败: {err_summary}"))
+    # 直接返回验证码给前端显示（不发送邮件）
+    return jsonify(success(data={"code": code}, message="验证码已生成"))
 
 
 @bp.post("/register")
