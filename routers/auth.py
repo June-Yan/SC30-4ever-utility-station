@@ -1,9 +1,11 @@
 """认证 API 路由（验证码发送/注册/密码登录/验证码登录/注销/设密码/重置密码）"""
 
+import json
 import random
 import re
 import smtplib
 import sqlalchemy.exc
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from email.header import Header
 from email.mime.text import MIMEText
@@ -60,6 +62,34 @@ def _send_email(to_email: str, subject: str, body: str) -> tuple[bool, str]:
         return True, ""
     except Exception as e:
         errors.append(f"SSL({ssl_port}): {type(e).__name__}: {e}")
+
+    # 方法 C: SendGrid HTTP API (云服务器 SMTP 端口被防火墙阻断时的备选)
+    if Config.SENDGRID_API_KEY:
+        try:
+            sg_data = {
+                "personalizations": [{"to": [{"email": to_email}]}],
+                "from": {"email": Config.SMTP_USER or "noreply@utility.com", "name": "实用工具聚合站"},
+                "subject": subject,
+                "content": [{"type": "text/plain", "value": body}],
+            }
+            req = urllib.request.Request(
+                "https://api.sendgrid.com/v3/mail/send",
+                data=json.dumps(sg_data).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {Config.SENDGRID_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                if resp.status in (200, 201, 202):
+                    return True, ""
+                else:
+                    errors.append(f"SendGrid HTTP {resp.status}")
+        except Exception as e:
+            errors.append(f"SendGrid: {type(e).__name__}: {e}")
+    else:
+        errors.append("SendGrid API Key 未配置")
 
     return False, "; ".join(errors)
 
