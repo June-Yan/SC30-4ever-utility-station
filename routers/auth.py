@@ -1,13 +1,11 @@
 """认证 API 路由（验证码发送/注册/密码登录/验证码登录/注销/设密码/重置密码）"""
 
-import json
 import random
 import re
 import smtplib
 import sqlalchemy.exc
-import urllib.request
+import ssl
 from datetime import datetime, timedelta, timezone
-from email.header import Header
 from email.mime.text import MIMEText
 from email.utils import formataddr
 from flask import Blueprint, request, jsonify
@@ -23,75 +21,44 @@ bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 def _send_email(to_email: str, subject: str, body: str) -> tuple[bool, str]:
     """通过 SMTP 发送邮件。
     返回 (success: bool, error_msg: str)。
-    SMTP 未配置时返回 (False, '未配置')。
-    支持 STARTTLS (587) 和 SSL (465) 两种连接方式自动回退。"""
+    未配置 SMTP_USER 时返回 (False, "")。
+    优先使用 SSL 直连 (465)，备选 STARTTLS (587)。"""
     if not Config.SMTP_USER or not Config.SMTP_PASSWORD:
-        return False, "SMTP 未配置（未设置 SMTP_USER / SMTP_PASSWORD）"
+        return False, ""
+
+    # Parse From header: "Name <email>" or just "email"
+    from_name = Config.SMTP_USER
+    from_addr = Config.SMTP_USER
+    if Config.SMTP_FROM:
+        m = re.match(r'^(.*?)\s*<(.+)>\s*$', Config.SMTP_FROM)
+        if m:
+            from_name, from_addr = m.group(1).strip(), m.group(2).strip()
+        else:
+            from_addr = Config.SMTP_FROM
 
     msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = Header(subject, "utf-8").encode()
-
-    # RFC2047 encode the From header so Chinese display names work with strict servers (QQ, etc.)
-    m = re.match(r'^(.*?)\s*<(.+)>\s*$', Config.SMTP_FROM)
-    if m:
-        name, addr = m.group(1).strip(), m.group(2).strip()
-        msg["From"] = formataddr((Header(name, "utf-8").encode(), addr))
-    else:
-        msg["From"] = Config.SMTP_FROM
-
+    msg["Subject"] = subject
+    msg["From"] = formataddr((from_name, from_addr))
     msg["To"] = to_email
 
-    errors = []
-
-    # 方法 A: STARTTLS (端口 587)
-    try:
-        with smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT, timeout=10) as server:
-            server.starttls()
-            server.login(Config.SMTP_USER, Config.SMTP_PASSWORD)
-            server.sendmail(Config.SMTP_FROM, [to_email], msg.as_string())
-        return True, ""
-    except Exception as e:
-        errors.append(f"STARTTLS({Config.SMTP_PORT}): {type(e).__name__}: {e}")
-
-    # 方法 B: SSL (端口 465，QQ 邮箱备选)
-    ssl_port = 465
-    try:
-        with smtplib.SMTP_SSL(Config.SMTP_HOST, ssl_port, timeout=10) as server:
-            server.login(Config.SMTP_USER, Config.SMTP_PASSWORD)
-            server.sendmail(Config.SMTP_FROM, [to_email], msg.as_string())
-        return True, ""
-    except Exception as e:
-        errors.append(f"SSL({ssl_port}): {type(e).__name__}: {e}")
-
-    # 方法 C: SendGrid HTTP API (云服务器 SMTP 端口被防火墙阻断时的备选)
-    if Config.SENDGRID_API_KEY:
+    if Config.SMTP_USE_SSL:
         try:
-            sg_data = {
-                "personalizations": [{"to": [{"email": to_email}]}],
-                "from": {"email": Config.SMTP_USER or "noreply@utility.com", "name": "实用工具聚合站"},
-                "subject": subject,
-                "content": [{"type": "text/plain", "value": body}],
-            }
-            req = urllib.request.Request(
-                "https://api.sendgrid.com/v3/mail/send",
-                data=json.dumps(sg_data).encode("utf-8"),
-                headers={
-                    "Authorization": f"Bearer {Config.SENDGRID_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                if resp.status in (200, 201, 202):
-                    return True, ""
-                else:
-                    errors.append(f"SendGrid HTTP {resp.status}")
+            ctx = ssl.create_default_context()
+            with smtplib.SMTP_SSL(Config.SMTP_HOST, Config.SMTP_PORT, context=ctx) as server:
+                server.login(Config.SMTP_USER, Config.SMTP_PASSWORD)
+                server.sendmail(from_addr, [to_email], msg.as_string())
+            return True, ""
         except Exception as e:
-            errors.append(f"SendGrid: {type(e).__name__}: {e}")
+            return False, f"SSL({Config.SMTP_PORT}): {type(e).__name__}"
     else:
-        errors.append("SendGrid API Key 未配置")
-
-    return False, "; ".join(errors)
+        try:
+            with smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT, timeout=10) as server:
+                server.starttls()
+                server.login(Config.SMTP_USER, Config.SMTP_PASSWORD)
+                server.sendmail(from_addr, [to_email], msg.as_string())
+            return True, ""
+        except Exception as e:
+            return False, f"STARTTLS({Config.SMTP_PORT}): {type(e).__name__}"
 
 
 @bp.post("/send-code")
@@ -119,8 +86,19 @@ def send_code():
     db.session.add(vc)
     db.session.commit()
 
-    # 直接返回验证码给前端显示（不发送邮件）
-    return jsonify(success(data={"code": code}, message="验证码已生成"))
+    # 尝试发送邮件，失败则回退到页面直显
+    email_sent, email_err = _send_email(
+        email,
+        "实用工具聚合站 — 验证码",
+        f"您的验证码是：{code}\n\n5分钟内有效，请勿告诉他人。"
+    )
+
+    if email_sent:
+        return jsonify(success(message="验证码已发送至您的邮箱"))
+    else:
+        # 邮件未发送（未配置 SMTP 或发送失败），回退到页面直显
+        hint = "验证码已生成（邮件未发送" + (f": {email_err}" if email_err else "，未配置 SMTP") + "）"
+        return jsonify(success(data={"code": code}, message=hint))
 
 
 @bp.post("/register")
