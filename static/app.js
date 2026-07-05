@@ -1211,7 +1211,7 @@ function renderHome() {
       <p>一站式聚合多款高频轻量工具，打开即用${auth.isGuest() ? '（游客模式，数据仅存本地）' : ''}</p>
     </div>
     <div class="home-search-box">
-      <input type="text" id="homeSearchInput" placeholder="🔍 搜索工具、工具、社区作品..." autocomplete="off" />
+      <input type="text" id="homeSearchInput" placeholder="🔍 搜索工具、社区作品..." autocomplete="off" />
       <div id="homeSearchResults" class="home-search-results hidden"></div>
     </div>
     <div id="topToolsArea"></div>
