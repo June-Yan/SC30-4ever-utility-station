@@ -1185,8 +1185,13 @@ let currentPage = 'home';
 let countdownTimer = null;
 
 function navigate(page) {
-  const guestAllowed = ['home', 'weather'];
-  if (auth.isGuest() && !guestAllowed.includes(page)) { showLoginPage(); return; }
+  const guestAllowed = ['home', 'weather', 'countdown', 'widgets', 'ranking'];
+  if (auth.isGuest() && !guestAllowed.includes(page)) {
+    showConfirm('🔒 此功能需要登录才能使用~\n\n点击"确定"前往登录').then(ok => {
+      if (ok) { auth.clearAuth(); showLoginPage(); }
+    });
+    return;
+  }
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   closeWidgetModal();
   currentPage = page;
