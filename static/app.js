@@ -1186,7 +1186,7 @@ let countdownTimer = null;
 
 function navigate(page) {
   const guestAllowed = ['home', 'weather'];
-  if (!auth.isLoggedIn() && !guestAllowed.includes(page)) { showLoginPage(); return; }
+  if (auth.isGuest() && !guestAllowed.includes(page)) { showLoginPage(); return; }
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   closeWidgetModal();
   currentPage = page;
@@ -1667,18 +1667,12 @@ async function addMemo() {
   if (!title) { showToast('请输入备忘标题', 'error'); return; }
 
   const clientId = genId();
-  if (auth.isGuest()) {
-    const ok = await showConfirm('💾 保存备忘需要登录~\n\n点击"确定"前往登录');
-    if (ok) { auth.clearAuth(); showLoginPage(); }
-    return;
-  } else {
-    try {
-      const res = await userdataApi.createMemo({ client_id: clientId, title, content });
-      if (res.code === 0) { _memoList.unshift(res.data); storage.set('memo_list', _memoList); }
-    } catch(e) {
-      _memoList.unshift({ id: clientId, client_id: clientId, title, content, createTime: formatTime(new Date()) });
-      storage.set('memo_list', _memoList);
-    }
+  try {
+    const res = await userdataApi.createMemo({ client_id: clientId, title, content });
+    if (res.code === 0) { _memoList.unshift(res.data); storage.set('memo_list', _memoList); }
+  } catch(e) {
+    _memoList.unshift({ id: clientId, client_id: clientId, title, content, createTime: formatTime(new Date()) });
+    storage.set('memo_list', _memoList);
   }
   $('#memoTitle').value = '';
   $('#memoContent').value = '';
