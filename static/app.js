@@ -1185,7 +1185,7 @@ let currentPage = 'home';
 let countdownTimer = null;
 
 function navigate(page) {
-  const guestAllowed = ['home', 'memo', 'weather'];
+  const guestAllowed = ['home', 'weather'];
   if (!auth.isLoggedIn() && !guestAllowed.includes(page)) { showLoginPage(); return; }
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   closeWidgetModal();
@@ -1668,15 +1668,7 @@ async function addMemo() {
 
   const clientId = genId();
   if (auth.isGuest()) {
-    // Save to localStorage first so data isn't lost after login
-    const tempMemo = { id: clientId, client_id: clientId, title, content, createTime: formatTime(new Date()) };
-    _memoList.unshift(tempMemo);
-    storage.set('memo_list', _memoList);
-    renderMemoList();
-    $('#memoTitle').value = '';
-    $('#memoContent').value = '';
-    showToast('备忘已暂存本地', 'success');
-    const ok = await showConfirm('💾 如需云端同步，请登录账号~\n\n点击"确定"前往登录');
+    const ok = await showConfirm('💾 保存备忘需要登录~\n\n点击"确定"前往登录');
     if (ok) { auth.clearAuth(); showLoginPage(); }
     return;
   } else {
@@ -1947,7 +1939,7 @@ function renderWidgets() {
     <h1 class="page-title"><span>🧩</span> 工具箱</h1>
     <div class="tools-tabs">
       <button class="tools-tab active" data-tab="presets">📦 预设工具</button>
-      <button class="tools-tab" data-tab="mywidgets">✨ 我的自定义</button>
+      <button class="tools-tab" data-tab="mywidgets">✨ 我的收藏</button>
     </div>
 
     <!-- 预设工具 -->
@@ -1966,18 +1958,18 @@ function renderWidgets() {
       </div>
     </div>
 
-    <!-- 我的自定义 -->
+    <!-- 我的收藏 -->
     <div class="tool-panel" id="panelMyWidgets">
       ${isGuest ? `
         <div class="guest-prompt" style="padding:48px 24px">
           <div class="guest-prompt-icon">🔒</div>
-          <h2>需要登录才能使用自定义工具</h2>
-          <p>登录后即可创建、管理和同步你的自定义工具</p>
+          <h2>需要登录才能使用收藏功能</h2>
+          <p>登录后即可创建和管理你的工具收藏</p>
           <button class="btn btn-primary" id="widgetsGuestLoginBtn">🔑 登录</button>
         </div>
       ` : `
       <div class="card" style="margin-bottom:16px">
-        <button class="btn btn-primary btn-sm" id="addWidgetBtn">+ 添加自定义工具</button>
+        <button class="btn btn-primary btn-sm" id="addWidgetBtn">+ 添加工具</button>
         <div id="addWidgetForm" class="add-widget-form" style="display:none;margin-top:16px">
           <div class="form-row">
             <label>名称 *</label>
@@ -2033,7 +2025,7 @@ function renderWidgets() {
           }).join('')}
         </div>
         <p style="text-align:center;color:var(--fg2);font-size:.82rem;margin-top:12px">💡 点击卡片使用工具，点击 📤 上传 分享到创意工坊</p>
-      ` : '<p style="text-align:center;color:var(--fg2);padding:24px">还没有自定义工具，点击上方按钮添加~</p>'}
+      ` : '<p style="text-align:center;color:var(--fg2);padding:24px">收藏还是空的，点击上方按钮添加~</p>'}
       `}
     </div>
   `;
@@ -2056,7 +2048,7 @@ async function initWidgets() {
     tab.addEventListener('click', () => {
       // Guest cannot access mywidgets
       if (auth.isGuest() && tab.dataset.tab === 'mywidgets') {
-        showConfirm('💾 使用自定义工具需要登录，登录后数据可云端同步~\n\n点击"确定"前往登录').then(ok => {
+        showConfirm('💾 要登录才能使用收藏功能~\n\n点击"确定"前往登录').then(ok => {
           if (ok) { auth.clearAuth(); showLoginPage(); }
         });
         return;
@@ -2202,7 +2194,7 @@ async function initWidgets() {
 }
 
 async function deleteCustomWidget(id) {
-  const ok = await showConfirm('确定删除这个自定义工具？');
+  const ok = await showConfirm('确定删除这个工具？');
   if (!ok) return;
   const config = getWidgetConfig();
   config.customs = config.customs.filter(c => c.id !== id);
