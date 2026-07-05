@@ -1185,7 +1185,8 @@ let currentPage = 'home';
 let countdownTimer = null;
 
 function navigate(page) {
-  if (!auth.isLoggedIn()) { showLoginPage(); return; }
+  const guestAllowed = ['home', 'memo', 'weather'];
+  if (!auth.isLoggedIn() && !guestAllowed.includes(page)) { showLoginPage(); return; }
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   closeWidgetModal();
   currentPage = page;
@@ -1667,7 +1668,15 @@ async function addMemo() {
 
   const clientId = genId();
   if (auth.isGuest()) {
-    const ok = await showConfirm('💾 保存备忘需要登录，登录后数据可云端同步~\n\n点击"确定"前往登录');
+    // Save to localStorage first so data isn't lost after login
+    const tempMemo = { id: clientId, client_id: clientId, title, content, createTime: formatTime(new Date()) };
+    _memoList.unshift(tempMemo);
+    storage.set('memo_list', _memoList);
+    renderMemoList();
+    $('#memoTitle').value = '';
+    $('#memoContent').value = '';
+    showToast('备忘已暂存本地', 'success');
+    const ok = await showConfirm('💾 如需云端同步，请登录账号~\n\n点击"确定"前往登录');
     if (ok) { auth.clearAuth(); showLoginPage(); }
     return;
   } else {
@@ -2415,7 +2424,7 @@ function renderUser() {
     </div>
     <div class="card" style="margin-bottom:20px">
       <div class="section-title">🧑‍🎨 创意工坊</div>
-      <p style="color:var(--fg2);margin-bottom:12px">浏览社区工具或上传你的创意作品 ♪</p>
+      <p style="color:var(--fg2);margin-bottom:12px">浏览社区工具，一键添加到你的工具箱 ♪</p>
       <button class="btn btn-primary" id="userWorkshop">🧑‍🎨 进入创意工坊</button>
     </div>
     <div class="user-bottom-links">
@@ -3003,11 +3012,10 @@ function renderWorkshop() {
   const isAdmin = auth.isAdmin();
   return `
     <h1 class="page-title"><span>🧑‍🎨</span> 创意工坊</h1>
-    <div class="tools-tabs">
+    ${isAdmin ? `<div class="tools-tabs">
       <button class="tools-tab active" data-ws-tab="community">🌐 社区作品</button>
-      <button class="tools-tab" data-ws-tab="upload">📤 上传作品</button>
-      ${isAdmin ? '<button class="tools-tab" data-ws-tab="pending">🔍 待审核</button>' : ''}
-    </div>
+      <button class="tools-tab" data-ws-tab="pending">🔍 待审核</button>
+    </div>` : ''}
 
     <!-- 社区作品 -->
     <div class="tool-panel active" id="wsPanelCommunity">
@@ -3015,45 +3023,6 @@ function renderWorkshop() {
         <input type="text" id="wsSearch" placeholder="🔍 搜索工具名称..." style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:var(--radius);font-size:.9rem;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'" />
       </div>
       <div id="wsCommunityList" style="color:var(--fg2)">加载中...</div>
-    </div>
-
-    <!-- 上传作品 -->
-    <div class="tool-panel" id="wsPanelUpload">
-      <div class="card" style="margin-bottom:16px;padding:28px 32px">
-        <h2 style="font-size:1.1rem;font-weight:700;margin:0 0 20px;text-align:center">📤 上传你的工具作品</h2>
-        <div style="display:flex;gap:12px;margin-bottom:20px">
-          <div style="flex:1">
-            <label style="display:block;font-size:.8rem;color:var(--fg2);margin-bottom:6px;font-weight:600">名称 *</label>
-            <input type="text" id="wsName" placeholder="给工具起个名字" maxlength="200" style="width:100%" />
-          </div>
-          <div style="width:72px;flex-shrink:0">
-            <label style="display:block;font-size:.8rem;color:var(--fg2);margin-bottom:6px;font-weight:600">图标</label>
-            <input type="text" id="wsIcon" placeholder="🐙" value="🔗" style="width:100%;text-align:center" />
-          </div>
-        </div>
-        <div style="margin-bottom:20px">
-          <label style="display:block;font-size:.8rem;color:var(--fg2);margin-bottom:8px;font-weight:600">类型</label>
-          <div style="display:flex;gap:8px">
-            <label class="ws-type-btn" style="flex:1;text-align:center;padding:10px 0;border:2px solid var(--border);border-radius:var(--radius);cursor:pointer;font-size:.88rem;transition:all .2s"><input type="radio" name="wsType" value="url" checked style="display:none" /> 🔗 快捷链接</label>
-            <label class="ws-type-btn" style="flex:1;text-align:center;padding:10px 0;border:2px solid var(--border);border-radius:var(--radius);cursor:pointer;font-size:.88rem;transition:all .2s"><input type="radio" name="wsType" value="content" style="display:none" /> 📝 自定义内容</label>
-            <label class="ws-type-btn" style="flex:1;text-align:center;padding:10px 0;border:2px solid var(--border);border-radius:var(--radius);cursor:pointer;font-size:.88rem;transition:all .2s"><input type="radio" name="wsType" value="code" style="display:none" /> 💻 自定义代码</label>
-          </div>
-        </div>
-        <div class="ws-url-row" style="margin-bottom:20px">
-          <label style="display:block;font-size:.8rem;color:var(--fg2);margin-bottom:6px;font-weight:600">URL *</label>
-          <input type="text" id="wsUrl" placeholder="https://example.com" style="width:100%" />
-        </div>
-        <div class="ws-content-row" style="display:none;margin-bottom:20px">
-          <label style="display:block;font-size:.8rem;color:var(--fg2);margin-bottom:6px;font-weight:600">内容</label>
-          <textarea id="wsContent" placeholder="自定义内容..." rows="4" style="width:100%"></textarea>
-        </div>
-        <div class="ws-code-row" style="display:none;margin-bottom:20px">
-          <label style="display:block;font-size:.8rem;color:var(--fg2);margin-bottom:6px;font-weight:600">HTML/JS 代码 <span style="font-weight:400;font-size:.72rem">（可用 showToast()、storage）</span></label>
-          <textarea id="wsCode" rows="6" style="width:100%;font-family:monospace;font-size:.85rem" placeholder='<button onclick="showToast("Hello","success")">Click Me</button>'></textarea>
-        </div>
-        <button class="btn btn-primary" id="wsSubmit" style="width:100%;padding:12px;font-size:1rem">📤 提交作品</button>
-        <p style="color:var(--fg2);font-size:.78rem;margin-top:14px;text-align:center;line-height:1.5">💡 也可以在 🧩 工具箱 → 我的自定义 中一键上传已有工具</p>
-      </div>
     </div>
 
     ${isAdmin ? `
@@ -3071,57 +3040,19 @@ async function initWorkshop() {
 
   const isAdmin = auth.isAdmin();
 
-  // Tab switching
-  const tabMap = { community: 'wsPanelCommunity', upload: 'wsPanelUpload', pending: 'wsPanelPending' };
-  $$('.tools-tab[data-ws-tab]').forEach(tab => {
-    tab.addEventListener('click', () => {
-      $$('.tools-tab[data-ws-tab]').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      $$('.tool-panel[id^="wsPanel"]').forEach(p => p.classList.remove('active'));
-      const panel = $(`#${tabMap[tab.dataset.wsTab]}`);
-      if (panel) panel.classList.add('active');
+  // Tab switching (admin only)
+  const tabMap = { community: 'wsPanelCommunity', pending: 'wsPanelPending' };
+  if (isAdmin) {
+    $$('.tools-tab[data-ws-tab]').forEach(tab => {
+      tab.addEventListener('click', () => {
+        $$('.tools-tab[data-ws-tab]').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        $$('.tool-panel[id^="wsPanel"]').forEach(p => p.classList.remove('active'));
+        const panel = $(`#${tabMap[tab.dataset.wsTab]}`);
+        if (panel) panel.classList.add('active');
+      });
     });
-  });
-
-  // Type toggle for upload form
-  const typeRadios = $$('input[name="wsType"]');
-  const toggleType = () => {
-    const t = document.querySelector('input[name="wsType"]:checked')?.value || 'url';
-    const urlRow = $('.ws-url-row');
-    const contentRow = $('.ws-content-row');
-    const codeRow = $('.ws-code-row');
-    if (urlRow) urlRow.style.display = t === 'url' ? '' : 'none';
-    if (contentRow) contentRow.style.display = t === 'content' ? '' : 'none';
-    if (codeRow) codeRow.style.display = t === 'code' ? '' : 'none';
-  };
-  typeRadios.forEach(r => r.addEventListener('change', toggleType));
-
-  // Upload submit
-  const wsSubmit = $('#wsSubmit');
-  if (wsSubmit) wsSubmit.addEventListener('click', async () => {
-    const name = $('#wsName').value.trim();
-    const icon = $('#wsIcon').value.trim() || '🔗';
-    const type = document.querySelector('input[name="wsType"]:checked')?.value || 'url';
-    const url = $('#wsUrl').value.trim();
-    const content = type === 'content' ? $('#wsContent').value : $('#wsCode').value;
-
-    if (!name) { showToast('请输入工具名称', 'error'); return; }
-    if (type === 'url' && !url) { showToast('快捷链接类型需要填写URL', 'error'); return; }
-    if (type === 'code' && !content.trim()) { showToast('自定义代码类型需要填写代码', 'error'); return; }
-
-    try {
-      const res = await workshopApi.upload({ name, icon, type, url, content });
-      if (res.code === 0) {
-        showToast('上传成功，等待管理员审核 ♪', 'success');
-        $('#wsName').value = '';
-        $('#wsUrl').value = '';
-        $('#wsContent').value = '';
-        $('#wsCode').value = '';
-      } else {
-        showToast(res.message || '上传失败', 'error');
-      }
-    } catch(e) { showToast('网络错误', 'error'); }
-  });
+  }
 
   // Load community widgets
   (async () => {
